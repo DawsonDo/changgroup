@@ -20,18 +20,22 @@ namespace VISSIMCalibrationWithGeneticSharp
             // Initialize chromosome structure and fitness
             //==========================================================================
             int m_numberOfBuckets = 10;
-            float maxWidth = 998f;
-            float maxHeight = 680f;
+            float maxStep = 20f;
 
             double[] minVals = new double[m_numberOfBuckets];
             double[] maxVals = new double[m_numberOfBuckets];
-            int[] 
+            int[] totalBits = new int[m_numberOfBuckets];
+            int[] fractionDigits = new int[m_numberOfBuckets];
 
-            var chromosome = new FloatingPointChromosome(
-                new double[] { 0, 0, 0, 0 },
-                new double[] { maxWidth, maxHeight, maxWidth, maxHeight },
-                new int[] { 10, 10, 10, 10 },
-                new int[] { 0, 0, 0, 0 });
+            for (int i = 0; i < m_numberOfBuckets; i++)
+            {
+                minVals[i] = 0;
+                maxVals[i] = maxStep;
+                totalBits[i] = 10;
+                fractionDigits[i] = 4;
+            }
+
+            var chromosome = new FloatingPointChromosome(minVals, maxVals, totalBits, fractionDigits);
 
             var fitness = new SpeedDistrFitness(m_numberOfBuckets);
 

@@ -57,7 +57,7 @@ namespace VISSIMCalibrationWithGeneticSharp
             var selection = new EliteSelection();
             var crossover = new UniformCrossover(0.5f);
             var mutation = new FlipBitMutation();
-            var population = new Population(50, 100, chromosome);
+            var population = new Population(10, 20, chromosome);
 
             GeneticAlgorithm m_ga = new GeneticAlgorithm(
                 population,
@@ -183,12 +183,10 @@ namespace VISSIMCalibrationWithGeneticSharp
 
             double[] observedHistogram = VissimRunAndResults(speedDistrPoints);
 
-            // Performs a Pearson's Chi-Squared Test to evaluate goodness of fit
-
             double fitness = 0.0;
             for (int i = 0; i < expectedHistogram.Length; i++)
             {
-                fitness += Math.Pow(observedHistogram[i] - expectedHistogram[i], 2) / expectedHistogram[i];
+                fitness -= Math.Pow(observedHistogram[i] - expectedHistogram[i], 2) / expectedHistogram[i];
             }
 
             return fitness;
@@ -207,12 +205,30 @@ namespace VISSIMCalibrationWithGeneticSharp
             int NumRuns = sim.get_AttValue("NumRuns");
             Console.WriteLine("               numRuns" + NumRuns);
 
-            double percentileStep = 100 / SpeedDistrPoints.Length;
-            double[] speedDistrPercentiles = new double[SpeedDistrPoints.Length + 1];
+            //// ========================================================================
+            // Sets Desired Speed Distribution for testing
+            //==========================================================================
+            double percentileStep = 100 / (SpeedDistrPoints.Length - 1);
+            double[] speedDistrPercentiles = new double[SpeedDistrPoints.Length];
+
+            speedDistrPercentiles[0] = 0.0;
+            speedDistrPercentiles[SpeedDistrPoints.Length] = 100.0;
+
+            for (int i = 1; i < SpeedDistrPoints.Length - 1; i++)
+            {
+                speedDistrPercentiles[i] = i * percentileStep;
+            }
 
             IDesSpeedDistribution desSpeedDistr0 = vis.Net.DesSpeedDistributions.get_ItemByKey(1047);//1047:DDI Urban Desired Spd
-            desSpeedDistr0.SpeedDistrDatPts.SetMultipleAttributes("x", SpeedDistrPoints);
-            desSpeedDistr0.SpeedDistrDatPts.SetMultipleAttributes("fx", speedDistrPercentiles);
+            desSpeedDistr0.SpeedDistrDatPts.SetMultipleAttributes("X", SpeedDistrPoints);
+            desSpeedDistr0.SpeedDistrDatPts.SetMultipleAttributes("FX", speedDistrPercentiles);
+
+            vis.SaveNet();
+
+            // Run the simulation
+            vis.Simulation.set_AttValue("UseMaxSimSpeed", true);
+            // To change the speed use: Vissim.Simulation.set_AttValue("SimSpeed", 10); // 10 => 10 Sim. sec. / s
+            vis.Simulation.RunContinuous();
 
             return observedHistogram;
         }

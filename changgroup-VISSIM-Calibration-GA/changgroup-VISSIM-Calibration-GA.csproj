@@ -62,8 +62,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="SpeedDistrFitness.cs" />
-    <Compile Include="SpeedDistrChromosome.cs" />
     <Compile Include="GAController.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

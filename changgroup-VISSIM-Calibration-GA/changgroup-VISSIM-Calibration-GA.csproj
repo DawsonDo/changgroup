@@ -45,6 +45,7 @@
     <Reference Include="GeneticSharp.Infrastructure.Framework, Version=2.5.2.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\GeneticSharp.2.5.2\lib\net462\GeneticSharp.Infrastructure.Framework.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="NCalc, Version=1.0.1.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\NCalc.NetCore.1.0.1\lib\netstandard2.0\NCalc.dll</HintPath>
     </Reference>

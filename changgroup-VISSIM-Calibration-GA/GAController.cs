@@ -17,6 +17,7 @@ using GeneticSharp.Domain.Terminations;
 using VISSIMLIB;
 
 using Microsoft.VisualBasic.FileIO;
+using MathNet.Numerics.Distributions;
 
 namespace VISSIMCalibrationWithGeneticSharp
 {
@@ -61,6 +62,12 @@ namespace VISSIMCalibrationWithGeneticSharp
             var mutation = new FlipBitMutation();
             var population = new Population(10, 20, chromosome);
 
+            // Terminate once the two distributions are homogeneous up to a specified significance level
+            var significance = .05;// Percent significance
+            
+            ChiSquared c = new ChiSquared(m_testDataBuckets - 1);
+            double threshold = c.InverseCumulativeDistribution(1 - significance);
+
             GeneticAlgorithm m_ga = new GeneticAlgorithm(
                 population,
                 fitness,
@@ -68,11 +75,10 @@ namespace VISSIMCalibrationWithGeneticSharp
                 crossover,
                 mutation)
             {
-
                 //// ========================================================================
                 // Select termination method
                 //==========================================================================
-                Termination = new FitnessStagnationTermination(100)
+                Termination = new FitnessThresholdTermination(-threshold)// MUST BE NEGATIVE !!
             };
 
             Console.WriteLine("Generation: (x1, y1), (x2, y2) = distance");
@@ -118,14 +124,12 @@ namespace VISSIMCalibrationWithGeneticSharp
 
         static IVissim vis;
         static ISimulation sim;
-        static readonly System.IO.StreamWriter file_VISSIM_Com;
+        static System.IO.StreamWriter file_VISSIM_Com;
         readonly string filenameOf_file_VISSIM_Com = "";
 
         public static double simulationPeriod = 3600;//Set to 3600 after the pilot test
 
         static int m_num_dataBuckets;
-        static float m_maxSpeedStep;
-        static int m_num_SpeedDistrPoints;
         static double histogramMax;
         static double bucketSize;
 
@@ -137,8 +141,8 @@ namespace VISSIMCalibrationWithGeneticSharp
         {
 
             m_num_dataBuckets = num_dataBuckets;
-            m_maxSpeedStep = maxSpeedStep;
-            m_num_SpeedDistrPoints = num_SpeedDistrPoints;
+
+            file_VISSIM_Com = new System.IO.StreamWriter(filenameOf_file_VISSIM_Com + "VISSIM_COM.txt");
 
             //// ========================================================================
             // Opens Vissim
@@ -179,10 +183,11 @@ namespace VISSIMCalibrationWithGeneticSharp
 
             IGraphics igraphic0 = vis.Graphics;
             igraphic0.set_AttValue("QuickMode", 1); //No moving vehicles in VISSIM. 1:activate; 0:deactivate
+            vis.SuspendUpdateGUI(); ;
 
             //reads raw data and generates observed histogram
             ExpectedHistogram = new double[m_num_dataBuckets];
-            histogramMax = m_maxSpeedStep * m_num_SpeedDistrPoints;
+            histogramMax = maxSpeedStep * num_SpeedDistrPoints;
             bucketSize = histogramMax / m_num_dataBuckets;
 
             using (TextFieldParser csvParser = new TextFieldParser(dataFilePath))
@@ -207,12 +212,10 @@ namespace VISSIMCalibrationWithGeneticSharp
                 }
             }
 
-            // Normalize Histogram
+            // Normalize Histogram--turns into probability mass function
             var sum = ExpectedHistogram.Sum();
             ExpectedHistogram = (double[])ExpectedHistogram.Select(d => d / sum);
 
-
-            //
         }
 
         public double[] ExpectedHistogram { get; private set; }
@@ -223,35 +226,44 @@ namespace VISSIMCalibrationWithGeneticSharp
         public double Evaluate(IChromosome chromosome)
         {
             // Create a Desired Speed Distribution based on the chromosome
-
-
             double[] speedDistrPoints = new double[chromosome.Length];
+            var fc = chromosome as FloatingPointChromosome;
+            var values = fc.ToFloatingPoints();
+
+            speedDistrPoints[0] = values[0];
+
+            for (int i = 1; i < speedDistrPoints.Length; i++)
+            {
+                speedDistrPoints[i] = speedDistrPoints[i - 1] + values[i];
+            }
 
             // Run a simulation based on the chromosome Desired Speed Distribution
             double[] ObservedHistogram = VissimRunAndResults(speedDistrPoints);
+            var sum = ObservedHistogram.Sum();
 
             // Fitness value is an increasing negative function, approaching zero error.
+            // Negative of the Pearson's Chi Square Test Statistic
             double fitness = 0.0;
             for (int i = 0; i < ExpectedHistogram.Length; i++)
             {
-                fitness -= Math.Pow(ObservedHistogram[i] - ExpectedHistogram[i], 2) / ExpectedHistogram[i];
+                fitness -= Math.Pow(ObservedHistogram[i] / sum - ExpectedHistogram[i], 2) / ExpectedHistogram[i];
             }
+
+            fitness *= sum;
 
             return fitness;
         }
 
+        //// ========================================================================
+        // Outputs histogram of observed counts
+        //==========================================================================
         private double[] VissimRunAndResults(double[] SpeedDistrPoints)
         {
             Debug.Assert(makeSureVISSIMisInitialized == true);
+
+            seedForThisEvaluation++;
             sim.set_AttValue("RandSeed", seedForThisEvaluation);
-
-            int seedNumTmp = sim.get_AttValue("RandSeed");
-            Console.WriteLine("seed after set in VISSIM " + seedNumTmp);
-
             sim.set_AttValue("NumRuns", 1);
-
-            int NumRuns = sim.get_AttValue("NumRuns");
-            Console.WriteLine("               numRuns" + NumRuns);
 
             //// ========================================================================
             // Sets Desired Speed Distribution for testing
@@ -280,9 +292,27 @@ namespace VISSIMCalibrationWithGeneticSharp
             // To change the speed use: Vissim.Simulation.set_AttValue("SimSpeed", 10); // 10 => 10 Sim. sec. / s
             vis.Simulation.RunContinuous();
 
-            seedForThisEvaluation++;
+            using (TextFieldParser csvParser = new TextFieldParser(dataFilePath))
+            {
+                csvParser.CommentTokens = new string[] { "#" };
+                csvParser.SetDelimiters(new string[] { "," });
+                csvParser.HasFieldsEnclosedInQuotes = true;
 
+                // Skip the row with the column names
+                csvParser.ReadLine();
 
+                while (!csvParser.EndOfData)
+                {
+                    int bucketIndex = 0;
+                    string[] fields = csvParser.ReadFields();
+                    double speedValue = fields[0];
+
+                    bucketIndex = (int)Math.Ceiling(speedValue / bucketSize) - 1;
+                    if (bucketIndex < 0)
+                        continue;
+                    ObservedHistogram[bucketIndex]++;
+                }
+            }
 
             return ObservedHistogram;
         }

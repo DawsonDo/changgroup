@@ -292,6 +292,7 @@ namespace VISSIMCalibrationWithGeneticSharp
             // To change the speed use: Vissim.Simulation.set_AttValue("SimSpeed", 10); // 10 => 10 Sim. sec. / s
             vis.Simulation.RunContinuous();
 
+
             using (TextFieldParser csvParser = new TextFieldParser(dataFilePath))
             {
                 csvParser.CommentTokens = new string[] { "#" };

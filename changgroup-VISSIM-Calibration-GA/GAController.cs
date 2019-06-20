@@ -212,7 +212,7 @@ namespace VISSIMCalibrationWithGeneticSharp
                 }
             }
 
-            // Normalize Histogram--turns into probability mass function
+            // Normalize Histogram--turns into probability mass function that sums to 1
             var sum = ExpectedHistogram.Sum();
             ExpectedHistogram = (double[])ExpectedHistogram.Select(d => d / sum);
 

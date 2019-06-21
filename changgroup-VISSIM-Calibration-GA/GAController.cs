@@ -81,7 +81,7 @@ namespace VISSIMCalibrationWithGeneticSharp
                 Termination = new FitnessThresholdTermination(-threshold)// MUST BE NEGATIVE !!
             };
 
-            Console.WriteLine("Generation: (x1, y1), (x2, y2) = distance");
+            Console.WriteLine("Generation: Significance");
 
             var latestFitness = 0.0;
 
@@ -93,15 +93,10 @@ namespace VISSIMCalibrationWithGeneticSharp
                 if (bestFitness != latestFitness)
                 {
                     latestFitness = bestFitness;
-                    var phenotype = bestChromosome.ToFloatingPoints();
 
                     Console.WriteLine(
-                        "Generation {0,2}: ({1},{2}),({3},{4}) = {5}",
+                        "Generation {0,2}: {5}",
                         m_ga.GenerationsNumber,
-                        phenotype[0],
-                        phenotype[1],
-                        phenotype[2],
-                        phenotype[3],
                         bestFitness
                     );
                 }
